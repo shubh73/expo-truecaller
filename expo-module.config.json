@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android", "web"],
+  "apple": {
+    "modules": ["ExpoTruecallerModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.truecaller.ExpoTruecallerModule"]
+  }
+}
