@@ -40,4 +40,16 @@ android {
   lintOptions {
     abortOnError false
   }
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_1_8
+    targetCompatibility JavaVersion.VERSION_1_8
+  }
+}
+
+repositories {
+  mavenCentral()
+}
+
+dependencies {
+  implementation "com.truecaller.android.sdk:truecaller-sdk:3.2.1"
 }

@@ -27,6 +27,16 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      [
+        "../app.plugin.js",
+        {
+          "androidClientId": "REPLACE_WITH_YOUR_ANDROID_CLIENT_ID",
+          "iosAppKey": "REPLACE_WITH_YOUR_IOS_APP_KEY",
+          "iosAppLink": "https://REPLACE_WITH_YOUR_IOS_APP_LINK"
+        }
+      ]
+    ]
   }
 }

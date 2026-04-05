@@ -1,12 +1,26 @@
-import { NativeModule, requireNativeModule } from 'expo';
+import { NativeModule, requireNativeModule } from "expo";
 
-import { ExpoTruecallerModuleEvents } from './ExpoTruecaller.types';
+import type {
+  ExpoTruecallerModuleEvents,
+  TruecallerAndroidInitOptions,
+  TruecallerAndroidResult,
+  TruecallerIOSResult,
+  TruecallerInitResult,
+  TruecallerVerifyOptions,
+} from "./ExpoTruecaller.types";
 
-declare class ExpoTruecallerModule extends NativeModule<ExpoTruecallerModuleEvents> {
-  PI: number;
-  hello(): string;
-  setValueAsync(value: string): Promise<void>;
+/** @internal Native module bridge declaration. */
+declare class ExpoTruecallerModuleClass extends NativeModule<ExpoTruecallerModuleEvents> {
+  initialize(
+    options: TruecallerAndroidInitOptions,
+  ): Promise<TruecallerInitResult>;
+  initialize(): Promise<TruecallerInitResult>;
+  verifyUser(
+    options: TruecallerVerifyOptions,
+  ): Promise<TruecallerAndroidResult>;
+  requestProfile(): Promise<TruecallerIOSResult>;
+  isSupported(): boolean;
+  clear(): void;
 }
 
-// This call loads the native module object from the JSI.
-export default requireNativeModule<ExpoTruecallerModule>('ExpoTruecaller');
+export default requireNativeModule<ExpoTruecallerModuleClass>("ExpoTruecaller");

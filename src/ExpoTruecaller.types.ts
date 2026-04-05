@@ -1,19 +1,211 @@
-import type { StyleProp, ViewStyle } from 'react-native';
+/**
+ * Consent screen heading text.
+ * Maps to `TcSdkOptions.SDK_CONSENT_HEADING_*` on Android.
+ * @platform android
+ */
+export type ConsentHeading =
+  | "logInTo"
+  | "signUpWith"
+  | "signInTo"
+  | "verifyNumberWith"
+  | "registerWith"
+  | "getStartedWith"
+  | "proceedWith"
+  | "verifyWith"
+  | "verifyProfileWith"
+  | "verifyYourProfileWith"
+  | "verifyPhoneNoWith"
+  | "verifyYourNoWith"
+  | "continueWith"
+  | "completeOrderWith"
+  | "placeOrderWith"
+  | "completeBookingWith"
+  | "checkoutWith"
+  | "manageDetailsWith"
+  | "manageYourDetailsWith"
+  | "loginToWithOneTap"
+  | "subscribeTo"
+  | "getUpdatesFrom"
+  | "continueReadingOn"
+  | "getNewUpdatesFrom"
+  | "loginSignupWith";
 
-export type OnLoadEventPayload = {
-  url: string;
+/**
+ * CTA button text prefix.
+ * Maps to `TcSdkOptions.CTA_TEXT_*` on Android.
+ * @platform android
+ */
+export type CtaTextPrefix = "continue" | "proceed" | "accept" | "confirm";
+
+/**
+ * CTA button shape.
+ * Maps to `TcSdkOptions.BUTTON_SHAPE_*` on Android.
+ * @platform android
+ */
+export type ButtonShape = "rounded" | "rectangle";
+
+/**
+ * Footer CTA text.
+ * Maps to `TcSdkOptions.FOOTER_TYPE_*` on Android.
+ *
+ * - `"continue"` — "Use another number"
+ * - `"anotherMethod"` — "Use another method"
+ * - `"manually"` — "Enter details manually"
+ * - `"later"` — "Later"
+ * @platform android
+ */
+export type FooterType = "continue" | "anotherMethod" | "manually" | "later";
+
+/**
+ * Consent screen layout mode.
+ * Maps to `TcSdkOptions.CONSENT_MODE_*` on Android (SDK 3.2.0+).
+ * @platform android
+ */
+export type ConsentMode = "popup" | "bottomsheet";
+
+/**
+ * Consent screen color theme.
+ * Maps to `OAuthThemeOptions.*` on Android (SDK 3.2.0+).
+ * @platform android
+ */
+export type OAuthTheme = "dark" | "light";
+
+/**
+ * SDK verification scope option.
+ * @platform android
+ */
+export type SdkOption = "verifyTcUsersOnly";
+
+/**
+ * Supported consent screen languages (ISO 639-1 codes).
+ * @platform android
+ */
+export type SupportedLanguage =
+  | "en"
+  | "hi"
+  | "mr"
+  | "te"
+  | "ml"
+  | "ur"
+  | "pa"
+  | "ta"
+  | "bn"
+  | "kn"
+  | "sw"
+  | "ar";
+
+/**
+ * Available OAuth scopes for the Android SDK.
+ * @platform android
+ */
+export type OAuthScope =
+  | "profile"
+  | "phone"
+  | "openid"
+  | "offline_access"
+  | "email"
+  | "address";
+
+/**
+ * Options for `initialize()` on Android. All fields are optional.
+ * @platform android
+ */
+export type TruecallerAndroidInitOptions = {
+  /** Button color as hex string, e.g. `"#4CAF50"`. */
+  buttonColor?: string;
+  /** Button text color as hex string, e.g. `"#FFFFFF"`. */
+  buttonTextColor?: string;
+  /** Consent screen layout mode (SDK 3.2.0+). */
+  consentMode?: ConsentMode;
+  /** Footer CTA text. */
+  footerType?: FooterType;
+  /** CTA button shape. */
+  buttonShape?: ButtonShape;
+  /** CTA button text prefix. */
+  ctaTextPrefix?: CtaTextPrefix;
+  /** Contextual heading on the consent screen. */
+  heading?: ConsentHeading;
+  /** Limit to Truecaller users only. */
+  sdkOption?: SdkOption;
+  /** Consent screen language. */
+  language?: SupportedLanguage;
+  /** Consent screen color theme (SDK 3.2.0+). */
+  theme?: OAuthTheme;
 };
 
-export type ExpoTruecallerModuleEvents = {
-  onChange: (params: ChangeEventPayload) => void;
+/**
+ * Options for `verifyUser()`.
+ * @platform android
+ */
+export type TruecallerVerifyOptions = {
+  /** OAuth scopes to request. Defaults to `["profile", "phone"]`. */
+  scopes?: OAuthScope[];
 };
 
-export type ChangeEventPayload = {
-  value: string;
+/** Result from `initialize()` on both platforms. */
+export type TruecallerInitResult = {
+  /** Whether the SDK initialized successfully. */
+  initialized: boolean;
+  /** Whether the Truecaller OAuth/profile flow is available on this device. */
+  isUsable: boolean;
 };
 
-export type ExpoTruecallerViewProps = {
-  url: string;
-  onLoad: (event: { nativeEvent: OnLoadEventPayload }) => void;
-  style?: StyleProp<ViewStyle>;
+/**
+ * Android success result from `verifyUser()`.
+ * Send `authorizationCode` and `codeVerifier` to your backend to exchange
+ * for an access token via the Truecaller OAuth token endpoint.
+ * @platform android
+ */
+export type TruecallerAndroidResult = {
+  /** Exchange this on your backend for an access token. */
+  authorizationCode: string;
+  /** Scopes the user granted. */
+  scopesGranted: string[];
+  /** PKCE code verifier — send alongside the authorization code. */
+  codeVerifier: string;
 };
+
+/**
+ * iOS success result from `requestProfile()`.
+ * Unlike Android, the iOS SDK returns profile data directly.
+ * @platform ios
+ */
+export type TruecallerIOSResult = {
+  /** User's first name. */
+  firstName: string | null;
+  /** User's last name. */
+  lastName: string | null;
+  /** User's phone number. */
+  phoneNumber: string | null;
+  /** ISO country code for the phone number. */
+  countryCode: string | null;
+  /** User's email address. */
+  email: string | null;
+  /** User's gender. */
+  gender: "male" | "female" | null;
+  /** URL to the user's Truecaller avatar. */
+  avatarUrl: string | null;
+  /** User's city. */
+  city: string | null;
+  /** Whether the user's profile is verified by Truecaller. */
+  isVerified: boolean;
+};
+
+/**
+ * Config plugin options for `app.json` / `app.config.ts`.
+ *
+ * `androidClientId` is required. iOS fields are optional — if omitted,
+ * iOS-specific native setup (URL schemes, associated domains, AppDelegate
+ * patching) is skipped entirely.
+ */
+export type TruecallerPluginConfig = {
+  /** Your Truecaller Android OAuth client ID. */
+  androidClientId: string;
+  /** Your Truecaller iOS app key (from the Truecaller developer portal). */
+  iosAppKey?: string;
+  /** Your iOS app link URL for universal links (associated domains). */
+  iosAppLink?: string;
+};
+
+/** @internal */
+export type ExpoTruecallerModuleEvents = Record<string, never>;
