@@ -39,7 +39,9 @@ public class ExpoTruecallerModule: Module, TCTrueSDKDelegate {
         return
       }
 
-      guard TCTrueSDK.sharedManager().isSupported() else {
+      let manager = TCTrueSDK.sharedManager()
+
+      guard manager.isSupported() else {
         promise.reject("IOS_NOT_SUPPORTED", "Truecaller is not installed on this device")
         return
       }
@@ -47,7 +49,7 @@ public class ExpoTruecallerModule: Module, TCTrueSDKDelegate {
       self.profilePromise?.reject("CLEARED", "Previous request was interrupted")
       self.profilePromise = promise
 
-      TCTrueSDK.sharedManager().requestTrueProfile()
+      manager.requestTrueProfile()
     }.runOnQueue(.main)
 
     Function("isSupported") { () -> Bool in

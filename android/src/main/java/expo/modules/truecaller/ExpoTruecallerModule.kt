@@ -44,14 +44,14 @@ class ExpoTruecallerModule : Module() {
 
     companion object {
         private const val TAG = "ExpoTruecaller"
-
-        @Volatile
-        private var pendingVerifyPromise: Promise? = null
     }
 
+    @Volatile private var pendingVerifyPromise: Promise? = null
     @Volatile private var isInitialized = false
     @Volatile private var codeVerifier: String? = null
     @Volatile private var themeOption: String? = null
+
+    private val oauthCallback = createOAuthCallback()
 
     override fun definition() = ModuleDefinition {
 
@@ -61,7 +61,7 @@ class ExpoTruecallerModule : Module() {
             try {
                 val activity = requireActivity(promise) ?: return@AsyncFunction
 
-                val tcSdkOptions = buildSdkOptions(activity, createOAuthCallback(), options)
+                val tcSdkOptions = buildSdkOptions(activity, oauthCallback, options)
                 TcSdk.init(tcSdkOptions)
                 isInitialized = true
 
@@ -201,11 +201,16 @@ class ExpoTruecallerModule : Module() {
         return object : TcOAuthCallback {
             override fun onSuccess(tcOAuthData: TcOAuthData) {
                 val promise = pendingVerifyPromise ?: return
+                val verifier = codeVerifier
+                if (verifier == null) {
+                    rejectPending(CodedException("PKCE_FAILED", "Code verifier is missing", null))
+                    return
+                }
                 promise.resolve(
                     bundleOf(
                         "authorizationCode" to tcOAuthData.authorizationCode,
                         "scopesGranted" to ArrayList(tcOAuthData.scopesGranted.toList()),
-                        "codeVerifier" to (codeVerifier ?: "")
+                        "codeVerifier" to verifier
                     )
                 )
                 clearPendingState()
@@ -225,10 +230,9 @@ class ExpoTruecallerModule : Module() {
 
             override fun onVerificationRequired(tcOAuthError: TcOAuthError?) {
                 val promise = pendingVerifyPromise ?: return
-                val code = tcOAuthError?.let { mapErrorCode(it.errorCode) } ?: "VERIFICATION_REQUIRED"
                 promise.reject(
                     CodedException(
-                        code,
+                        "VERIFICATION_REQUIRED",
                         tcOAuthError?.errorMessage ?: "Additional verification required",
                         null
                     )
