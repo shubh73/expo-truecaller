@@ -1,6 +1,6 @@
 {
   "name": "expo-truecaller",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Expo module wrapping the Truecaller SDK for one-tap phone verification on Android and iOS.",
   "main": "build/index.js",
   "types": "build/index.d.ts",
