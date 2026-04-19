@@ -78,15 +78,21 @@ if (isUsable) {
 
 ### `initializeAsync(options?)`
 
-Initialize the Truecaller SDK. Returns `{ initialized, isUsable }`. On Android, accepts optional [customization options](https://docs.truecaller.com/truecaller-sdk/android/oauth-sdk-3.2.1/integration-steps/customisation). On iOS, reads credentials from `Info.plist` (set by the config plugin). Some options (`loginTextPrefix`, `dismissOption`, extra `ctaTextPrefix` values) are available in the SDK binary but not yet in the official Truecaller docs.
+Initialize the Truecaller SDK. Returns `{ initialized, isUsable }`.
+
+On Android, accepts optional [customization options](https://docs.truecaller.com/truecaller-sdk/android/oauth-sdk-3.2.1/integration-steps/customisation). On iOS, reads credentials from `Info.plist` (set by the config plugin).
 
 ### `verifyUserAsync(options?)` — Android
 
-Trigger the Truecaller OAuth flow. Returns `{ authorizationCode, codeVerifier, scopesGranted, state }`. Options: `scopes` (defaults to `["profile", "phone"]`).
+Trigger the Truecaller OAuth flow. Options: `scopes` (defaults to `["profile", "phone"]`).
+
+Returns `{ authorizationCode, codeVerifier, scopesGranted, state }`.
 
 ### `requestProfileAsync()` — iOS
 
-Request the user's Truecaller profile. Returns `{ firstName, lastName, phoneNumber, countryCode, email, gender, avatarUrl, city, isVerified }`.
+Request the user's Truecaller profile.
+
+Returns `{ firstName, lastName, phoneNumber, countryCode, email, gender, avatarUrl, city, isVerified }`.
 
 ### `clear()`
 
