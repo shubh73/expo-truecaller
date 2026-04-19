@@ -10,17 +10,12 @@ import {
 const pkg = require("../../package.json");
 
 type TruecallerPluginConfig = {
-  androidClientId: string;
+  androidClientId?: string;
   iosAppKey?: string;
   iosAppLink?: string;
 };
 
 function validateProps(props: TruecallerPluginConfig): void {
-  if (!props.androidClientId || typeof props.androidClientId !== "string") {
-    throw new Error(
-      `expo-truecaller: "androidClientId" is required and must be a non-empty string.`
-    );
-  }
   if (props.iosAppKey && !props.iosAppLink) {
     throw new Error(
       `expo-truecaller: "iosAppLink" is required when "iosAppKey" is provided.`
@@ -35,7 +30,7 @@ function validateProps(props: TruecallerPluginConfig): void {
 
 // --- Android ---
 
-const withTruecallerAndroid: ConfigPlugin<TruecallerPluginConfig> = (
+const withTruecallerAndroid: ConfigPlugin<{ androidClientId: string }> = (
   config,
   { androidClientId }
 ) => {
@@ -127,7 +122,11 @@ const withTruecaller: ConfigPlugin<TruecallerPluginConfig> = (
 ) => {
   validateProps(props);
 
-  config = withTruecallerAndroid(config, props);
+  if (props.androidClientId) {
+    config = withTruecallerAndroid(config, {
+      androidClientId: props.androidClientId,
+    });
+  }
 
   if (props.iosAppKey && props.iosAppLink) {
     config = withTruecallerIOSPlist(config, {

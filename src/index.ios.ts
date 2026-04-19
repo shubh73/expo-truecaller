@@ -3,7 +3,6 @@ import type {
   TruecallerInitResult,
 } from "./ExpoTruecaller.types";
 import ExpoTruecallerModule from "./ExpoTruecallerModule";
-import { TruecallerError } from "./errors";
 
 /**
  * Initialize the Truecaller SDK.
@@ -14,12 +13,8 @@ import { TruecallerError } from "./errors";
  * @return A promise that resolves with the initialization result.
  * @platform ios
  */
-export async function initialize(): Promise<TruecallerInitResult> {
-  try {
-    return await ExpoTruecallerModule.initialize();
-  } catch (e) {
-    throw TruecallerError.from(e);
-  }
+export async function initializeAsync(): Promise<TruecallerInitResult> {
+  return ExpoTruecallerModule.initializeAsync();
 }
 
 /**
@@ -31,49 +26,18 @@ export async function initialize(): Promise<TruecallerInitResult> {
  * @return A promise that resolves with the user's Truecaller profile.
  * @platform ios
  */
-export async function requestProfile(): Promise<TruecallerIOSResult> {
-  try {
-    return await ExpoTruecallerModule.requestProfile();
-  } catch (e) {
-    throw TruecallerError.from(e);
-  }
-}
-
-/**
- * Check if Truecaller is installed and supported on this device.
- * @return `true` if Truecaller is available.
- * @platform ios
- */
-export function isSupported(): boolean {
-  return ExpoTruecallerModule.isSupported();
+export async function requestProfileAsync(): Promise<TruecallerIOSResult> {
+  return ExpoTruecallerModule.requestProfileAsync();
 }
 
 /**
  * Clear the SDK instance and release resources.
- * Rejects any pending `requestProfile()` promise with the `CLEARED` error code.
+ * Rejects any pending `requestProfileAsync()` promise with `ERR_CLEARED`.
  * @platform ios
  */
 export function clear(): void {
   ExpoTruecallerModule.clear();
 }
 
-export type {
-  ConsentHeading,
-  CtaTextPrefix,
-  ButtonShape,
-  FooterType,
-  ConsentMode,
-  OAuthTheme,
-  SdkOption,
-  SupportedLanguage,
-  OAuthScope,
-  TruecallerAndroidInitOptions,
-  TruecallerVerifyOptions,
-  TruecallerInitResult,
-  TruecallerAndroidResult,
-  TruecallerIOSResult,
-  TruecallerPluginConfig,
-} from "./ExpoTruecaller.types";
-
-export { TruecallerError, TruecallerErrorCodes } from "./errors";
-export type { TruecallerErrorCode } from "./errors";
+export * from "./ExpoTruecaller.types";
+export * from "./errors";

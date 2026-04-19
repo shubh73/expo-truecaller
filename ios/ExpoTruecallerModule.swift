@@ -2,23 +2,23 @@ import ExpoModulesCore
 import TrueSDK
 
 public class ExpoTruecallerModule: Module, TCTrueSDKDelegate {
-  private var profilePromise: Promise?
+  private var pendingPromise: Promise?
   private var isInitialized = false
 
   public func definition() -> ModuleDefinition {
     Name("ExpoTruecaller")
 
-    AsyncFunction("initialize") { (promise: Promise) in
+    AsyncFunction("initializeAsync") { (promise: Promise) in
       let appKey = Bundle.main.object(forInfoDictionaryKey: "TruecallerAppKey") as? String ?? ""
       let appLink = Bundle.main.object(forInfoDictionaryKey: "TruecallerAppLink") as? String ?? ""
 
       guard !appKey.isEmpty else {
-        promise.reject("INIT_FAILED", "TruecallerAppKey not found in Info.plist. Configure it via the expo-truecaller config plugin.")
+        promise.reject("ERR_INIT_FAILED", "TruecallerAppKey not found in Info.plist. Configure it via the expo-truecaller config plugin.")
         return
       }
 
       guard !appLink.isEmpty else {
-        promise.reject("INIT_FAILED", "TruecallerAppLink not found in Info.plist. Configure it via the expo-truecaller config plugin.")
+        promise.reject("ERR_INIT_FAILED", "TruecallerAppLink not found in Info.plist. Configure it via the expo-truecaller config plugin.")
         return
       }
 
@@ -33,39 +33,41 @@ public class ExpoTruecallerModule: Module, TCTrueSDKDelegate {
       ])
     }.runOnQueue(.main)
 
-    AsyncFunction("requestProfile") { (promise: Promise) in
+    AsyncFunction("requestProfileAsync") { (promise: Promise) in
       guard self.isInitialized else {
-        promise.reject("NOT_INITIALIZED", "Call initialize() first")
+        promise.reject("ERR_NOT_INITIALIZED", "Call initializeAsync() first")
         return
       }
 
       let manager = TCTrueSDK.sharedManager()
 
       guard manager.isSupported() else {
-        promise.reject("IOS_NOT_SUPPORTED", "Truecaller is not installed on this device")
+        promise.reject("ERR_NOT_AVAILABLE", "Truecaller is not installed on this device")
         return
       }
 
-      self.profilePromise?.reject("CLEARED", "Previous request was interrupted")
-      self.profilePromise = promise
+      if self.pendingPromise != nil {
+        promise.reject("ERR_ALREADY_IN_PROGRESS", "A requestProfileAsync() call is already in progress. Await the current request first.")
+        return
+      }
 
+      self.pendingPromise = promise
       manager.requestTrueProfile()
     }.runOnQueue(.main)
 
-    Function("isSupported") { () -> Bool in
-      guard self.isInitialized else { return false }
-      return TCTrueSDK.sharedManager().isSupported()
-    }
-
     Function("clear") {
-      self.profilePromise?.reject("CLEARED", "SDK was cleared")
-      self.profilePromise = nil
+      let p = self.pendingPromise
+      self.pendingPromise = nil
+      p?.reject("ERR_CLEARED", "SDK was cleared")
+      TCTrueSDK.sharedManager().delegate = nil
       self.isInitialized = false
     }
 
     OnDestroy {
-      self.profilePromise?.reject("CLEARED", "Module was destroyed")
-      self.profilePromise = nil
+      let p = self.pendingPromise
+      self.pendingPromise = nil
+      p?.reject("ERR_MODULE_DESTROYED", "Module was destroyed")
+      TCTrueSDK.sharedManager().delegate = nil
       self.isInitialized = false
     }
   }
@@ -73,7 +75,9 @@ public class ExpoTruecallerModule: Module, TCTrueSDKDelegate {
   // MARK: - TCTrueSDKDelegate
 
   public func didReceive(_ profile: TCTrueProfile) {
-    guard let promise = profilePromise else { return }
+    let p = pendingPromise
+    pendingPromise = nil
+    guard let promise = p else { return }
 
     var gender: String? = nil
     switch profile.gender {
@@ -93,26 +97,37 @@ public class ExpoTruecallerModule: Module, TCTrueSDKDelegate {
       "city": profile.city as Any,
       "isVerified": profile.isVerified
     ])
-    profilePromise = nil
   }
 
   public func didFailToReceiveTrueProfileWithError(_ error: TCError) {
-    guard let promise = profilePromise else { return }
-    promise.reject(mapIOSErrorCode(error.code), error.localizedDescription)
-    profilePromise = nil
+    let p = pendingPromise
+    pendingPromise = nil
+    p?.reject(mapIOSErrorCode(error.code), error.localizedDescription)
   }
 
   private func mapIOSErrorCode(_ code: Int) -> String {
     switch code {
-    case 1:  return "IOS_APP_KEY_MISSING"
-    case 2:  return "IOS_APP_LINK_MISSING"
-    case 3:  return "IOS_USER_CANCELLED"
-    case 4:  return "IOS_USER_NOT_SIGNED_IN"
-    case 5:  return "IOS_SDK_TOO_OLD"
-    case 8:  return "NOT_INSTALLED"
-    case 9:  return "NETWORK_FAILURE"
-    case 10: return "SDK_ERROR"
-    default: return "UNKNOWN_ERROR"
+    case 1:  return "ERR_IOS_APP_KEY_MISSING"
+    case 2:  return "ERR_IOS_APP_LINK_MISSING"
+    case 3:  return "ERR_USER_CANCELLED"
+    case 4:  return "ERR_IOS_USER_NOT_SIGNED_IN"
+    case 5:  return "ERR_SDK_TOO_OLD"
+    case 6:  return "ERR_SDK_TOO_OLD"             // TruecallerTooOld
+    case 7:  return "ERR_SDK_TOO_OLD"             // OSNotSupported
+    case 8:  return "ERR_NOT_INSTALLED"
+    case 9:  return "ERR_NETWORK_FAILURE"
+    case 10: return "ERR_SDK_ERROR"
+    case 11: return "ERR_SDK_ERROR"               // UnauthorizedUser
+    case 12: return "ERR_IOS_UNAUTHORIZED_DEVELOPER"
+    case 13: return "ERR_SDK_ERROR"               // UserProfileContentNotValid
+    case 14: return "ERR_SDK_ERROR"               // BadRequest
+    case 15: return "ERR_VERIFICATION_FAILED"
+    case 16: return "ERR_SDK_ERROR"               // RequestNonceMismatch
+    case 17: return "ERR_SDK_ERROR"               // ViewDelegateNil
+    case 18: return "ERR_SDK_ERROR"               // InvalidName
+    case 19: return "ERR_IOS_UNIVERSAL_LINK_FAILED"
+    case 20: return "ERR_IOS_URL_SCHEME_MISSING"
+    default: return "ERR_UNKNOWN_ERROR"
     }
   }
 }

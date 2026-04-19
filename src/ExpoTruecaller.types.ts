@@ -35,7 +35,37 @@ export type ConsentHeading =
  * Maps to `TcSdkOptions.CTA_TEXT_*` on Android.
  * @platform android
  */
-export type CtaTextPrefix = "continue" | "proceed" | "accept" | "confirm";
+export type CtaTextPrefix =
+  | "continue"
+  | "proceed"
+  | "accept"
+  | "confirm"
+  | "use"
+  | "continueWith"
+  | "proceedWith";
+
+/**
+ * Login text prefix shown above the CTA button.
+ * Maps to `TcSdkOptions.LOGIN_TEXT_PREFIX_*` on Android.
+ * @platform android
+ */
+export type LoginTextPrefix =
+  | "toGetStarted"
+  | "toContinue"
+  | "toPlaceOrder"
+  | "toCompleteYourPurchase"
+  | "toCheckout"
+  | "toCompleteYourBooking"
+  | "toProceedWithYourBooking"
+  | "toContinueWithYourBooking"
+  | "toGetDetails"
+  | "toViewMore"
+  | "toContinueReading"
+  | "toProceed"
+  | "forNewUpdates"
+  | "toGetUpdates"
+  | "toSubscribe"
+  | "toSubscribeAndGetUpdates";
 
 /**
  * CTA button shape.
@@ -48,13 +78,19 @@ export type ButtonShape = "rounded" | "rectangle";
  * Footer CTA text.
  * Maps to `TcSdkOptions.FOOTER_TYPE_*` on Android.
  *
- * - `"continue"` — "Use another number"
+ * - `"skip"` — "Skip"
+ * - `"anotherNumber"` — "Use another mobile number"
  * - `"anotherMethod"` — "Use another method"
  * - `"manually"` — "Enter details manually"
  * - `"later"` — "Later"
  * @platform android
  */
-export type FooterType = "continue" | "anotherMethod" | "manually" | "later";
+export type FooterType =
+  | "skip"
+  | "anotherNumber"
+  | "anotherMethod"
+  | "manually"
+  | "later";
 
 /**
  * Consent screen layout mode.
@@ -71,10 +107,20 @@ export type ConsentMode = "popup" | "bottomsheet";
 export type OAuthTheme = "dark" | "light";
 
 /**
- * SDK verification scope option.
+ * How the consent screen can be dismissed.
+ * Maps to `TcSdkOptions.DISMISS_OPTION_*` on Android.
  * @platform android
  */
-export type SdkOption = "verifyTcUsersOnly";
+export type DismissOption = "secondaryCtaBorder" | "crossButton";
+
+/**
+ * SDK verification scope option.
+ *
+ * - `"verifyTcUsersOnly"` — only users with Truecaller installed can verify
+ * - `"verifyAllUsers"` — all users can verify (may trigger OTP fallback)
+ * @platform android
+ */
+export type SdkOption = "verifyTcUsersOnly" | "verifyAllUsers";
 
 /**
  * Supported consent screen languages (ISO 639-1 codes).
@@ -107,7 +153,7 @@ export type OAuthScope =
   | "address";
 
 /**
- * Options for `initialize()` on Android. All fields are optional.
+ * Options for `initializeAsync()` on Android. All fields are optional.
  * @platform android
  */
 export type TruecallerAndroidInitOptions = {
@@ -123,9 +169,13 @@ export type TruecallerAndroidInitOptions = {
   buttonShape?: ButtonShape;
   /** CTA button text prefix. */
   ctaTextPrefix?: CtaTextPrefix;
+  /** Login text prefix shown above the CTA button. */
+  loginTextPrefix?: LoginTextPrefix;
   /** Contextual heading on the consent screen. */
   heading?: ConsentHeading;
-  /** Limit to Truecaller users only. */
+  /** How the consent screen dismiss UI is shown. */
+  dismissOption?: DismissOption;
+  /** Verification scope — Truecaller users only, or all users. */
   sdkOption?: SdkOption;
   /** Consent screen language. */
   language?: SupportedLanguage;
@@ -134,7 +184,7 @@ export type TruecallerAndroidInitOptions = {
 };
 
 /**
- * Options for `verifyUser()`.
+ * Options for `verifyUserAsync()`.
  * @platform android
  */
 export type TruecallerVerifyOptions = {
@@ -142,7 +192,7 @@ export type TruecallerVerifyOptions = {
   scopes?: OAuthScope[];
 };
 
-/** Result from `initialize()` on both platforms. */
+/** Result from `initializeAsync()` on both platforms. */
 export type TruecallerInitResult = {
   /** Whether the SDK initialized successfully. */
   initialized: boolean;
@@ -151,7 +201,7 @@ export type TruecallerInitResult = {
 };
 
 /**
- * Android success result from `verifyUser()`.
+ * Android success result from `verifyUserAsync()`.
  * Send `authorizationCode` and `codeVerifier` to your backend to exchange
  * for an access token via the Truecaller OAuth token endpoint.
  * @platform android
@@ -163,10 +213,12 @@ export type TruecallerAndroidResult = {
   scopesGranted: string[];
   /** PKCE code verifier — send alongside the authorization code. */
   codeVerifier: string;
+  /** OAuth state for CSRF verification — compare against the state you originally set. */
+  state: string;
 };
 
 /**
- * iOS success result from `requestProfile()`.
+ * iOS success result from `requestProfileAsync()`.
  * Unlike Android, the iOS SDK returns profile data directly.
  * @platform ios
  */
@@ -194,18 +246,14 @@ export type TruecallerIOSResult = {
 /**
  * Config plugin options for `app.json` / `app.config.ts`.
  *
- * `androidClientId` is required. iOS fields are optional — if omitted,
- * iOS-specific native setup (URL schemes, associated domains, AppDelegate
- * patching) is skipped entirely.
+ * All fields are optional. Omitting a platform's fields skips its native setup.
+ * At least one platform should be configured for the module to be useful.
  */
 export type TruecallerPluginConfig = {
   /** Your Truecaller Android OAuth client ID. */
-  androidClientId: string;
+  androidClientId?: string;
   /** Your Truecaller iOS app key (from the Truecaller developer portal). */
   iosAppKey?: string;
   /** Your iOS app link URL for universal links (associated domains). */
   iosAppLink?: string;
 };
-
-/** @internal */
-export type ExpoTruecallerModuleEvents = Record<string, never>;

@@ -28,7 +28,9 @@ class InitOptions : Record {
     @Field val footerType: String? = null
     @Field val buttonShape: String? = null
     @Field val ctaTextPrefix: String? = null
+    @Field val loginTextPrefix: String? = null
     @Field val heading: String? = null
+    @Field val dismissOption: String? = null
     @Field val sdkOption: String? = null
     @Field val language: String? = null
     @Field val theme: String? = null
@@ -44,9 +46,10 @@ class ExpoTruecallerModule : Module() {
 
     companion object {
         private const val TAG = "ExpoTruecaller"
+        private val secureRandom = SecureRandom()
     }
 
-    @Volatile private var pendingVerifyPromise: Promise? = null
+    @Volatile private var pendingPromise: Promise? = null
     @Volatile private var isInitialized = false
     @Volatile private var codeVerifier: String? = null
     @Volatile private var themeOption: String? = null
@@ -57,10 +60,9 @@ class ExpoTruecallerModule : Module() {
 
         Name("ExpoTruecaller")
 
-        AsyncFunction("initialize") { options: InitOptions, promise: Promise ->
+        AsyncFunction("initializeAsync") { options: InitOptions, promise: Promise ->
             try {
-                val activity = requireActivity(promise) ?: return@AsyncFunction
-
+                val activity = requireActivity()
                 val tcSdkOptions = buildSdkOptions(activity, oauthCallback, options)
                 TcSdk.init(tcSdkOptions)
                 isInitialized = true
@@ -77,43 +79,33 @@ class ExpoTruecallerModule : Module() {
 
                 promise.resolve(bundleOf("initialized" to true, "isUsable" to isUsable))
             } catch (e: Exception) {
-                Log.e(TAG, "Error initializing TcSdk", e)
-                promise.reject(CodedException("INIT_FAILED", e.message ?: "Failed to initialize Truecaller SDK", e))
+                throw InitFailedException(e)
             }
         }
 
-        AsyncFunction("verifyUser") { options: VerifyOptions, promise: Promise ->
-            if (!isInitialized) {
-                promise.reject(CodedException("NOT_INITIALIZED", "Call initialize() first", null))
-                return@AsyncFunction
-            }
+        AsyncFunction("verifyUserAsync") { options: VerifyOptions, promise: Promise ->
+            if (!isInitialized) throw NotInitializedException()
 
-            val activity = requireActivity(promise) ?: return@AsyncFunction
+            val activity = requireActivity()
+            val launcher = TruecallerLauncherHolder.launcher ?: throw LauncherNotRegisteredException()
 
-            val launcher = TruecallerLauncherHolder.launcher
-            if (launcher == null) {
-                promise.reject(CodedException("LAUNCHER_NOT_REGISTERED", "ActivityResultLauncher not registered — this may indicate a lifecycle issue", null))
-                return@AsyncFunction
-            }
+            if (!TcSdk.getInstance().isOAuthFlowUsable) throw NotAvailableException()
+            if (pendingPromise != null) throw AlreadyInProgressException()
 
-            if (!TcSdk.getInstance().isOAuthFlowUsable) {
-                promise.reject(CodedException("NOT_AVAILABLE", "Truecaller is not installed or user is not logged in", null))
-                return@AsyncFunction
-            }
+            pendingPromise = promise
 
-            pendingVerifyPromise?.reject(CodedException("CLEARED", "Previous verification was interrupted", null))
-            pendingVerifyPromise = promise
-
-            TruecallerLauncherHolder.resultErrorCallback = { e ->
-                pendingVerifyPromise?.reject(CodedException("RESULT_ERROR", e.message ?: "Error handling activity result", e))
-                clearPendingState()
+            TruecallerLauncherHolder.resultErrorCallback = callback@{ e ->
+                val p = pendingPromise ?: return@callback
+                pendingPromise = null
+                TruecallerLauncherHolder.resultErrorCallback = null
+                p.reject(ResultErrorException(e))
             }
 
             activity.runOnUiThread {
                 try {
                     val tcSdk = TcSdk.getInstance()
 
-                    tcSdk.setOAuthState(BigInteger(130, SecureRandom()).toString(32))
+                    tcSdk.setOAuthState(BigInteger(130, secureRandom).toString(32))
 
                     val scopes = options.scopes
                         ?.toTypedArray()
@@ -122,19 +114,20 @@ class ExpoTruecallerModule : Module() {
                     tcSdk.setOAuthScopes(scopes)
 
                     val verifier = CodeVerifierUtil.generateRandomCodeVerifier()
-                    if (verifier == null) {
-                        rejectPending(CodedException("PKCE_FAILED", "Failed to generate code verifier", null))
-                        return@runOnUiThread
-                    }
+                        ?: run {
+                            settleWithError(PkceFailedException())
+                            return@runOnUiThread
+                        }
                     codeVerifier = verifier
 
                     val challenge = CodeVerifierUtil.getCodeChallenge(verifier)
-                    if (challenge == null) {
-                        rejectPending(CodedException("PKCE_FAILED", "Failed to generate code challenge", null))
-                        return@runOnUiThread
-                    }
+                        ?: run {
+                            settleWithError(PkceFailedException())
+                            return@runOnUiThread
+                        }
                     tcSdk.setCodeChallenge(challenge)
 
+                    // Theme must be set immediately before getAuthorizationCode
                     when (themeOption) {
                         "dark" -> tcSdk.setTheme(OAuthThemeOptions.DARK)
                         "light" -> tcSdk.setTheme(OAuthThemeOptions.LIGHT)
@@ -143,53 +136,43 @@ class ExpoTruecallerModule : Module() {
                     tcSdk.getAuthorizationCode(activity, launcher)
                 } catch (e: Exception) {
                     Log.e(TAG, "Error starting verification flow", e)
-                    rejectPending(CodedException("VERIFICATION_FAILED", e.message ?: "Failed to start verification", e))
+                    settleWithError(VerificationFailedException(e))
                 }
             }
         }
 
         Function("clear") {
-            cleanup("SDK was cleared")
+            cleanup(ClearedException())
         }
 
         OnDestroy {
-            cleanup("Module was destroyed")
+            cleanup(ModuleDestroyedException())
         }
     }
 
     // --- Helpers ---
 
-    private fun requireActivity(promise: Promise): FragmentActivity? {
+    private fun requireActivity(): FragmentActivity {
         val activity = appContext.currentActivity as? FragmentActivity
-        if (activity == null) {
-            promise.reject(CodedException("NO_ACTIVITY", "No FragmentActivity available", null))
-            return null
-        }
-        if (activity.isFinishing || activity.isDestroyed) {
-            promise.reject(CodedException("ACTIVITY_DESTROYED", "Activity is finishing or destroyed", null))
-            return null
-        }
+            ?: throw NoActivityException()
+        if (activity.isFinishing || activity.isDestroyed) throw ActivityDestroyedException()
         return activity
     }
 
-    private fun rejectPending(error: CodedException) {
-        pendingVerifyPromise?.reject(error)
-        clearPendingState()
-    }
-
-    private fun clearPendingState() {
-        pendingVerifyPromise = null
+    private fun settleWithError(error: CodedException) {
+        val p = pendingPromise ?: return
+        pendingPromise = null
         TruecallerLauncherHolder.resultErrorCallback = null
+        p.reject(error)
     }
 
-    private fun cleanup(reason: String) {
+    private fun cleanup(error: CodedException) {
         try {
             if (isInitialized) {
                 TcSdk.clear()
                 isInitialized = false
             }
-            pendingVerifyPromise?.reject(CodedException("CLEARED", reason, null))
-            clearPendingState()
+            settleWithError(error)
             codeVerifier = null
             themeOption = null
         } catch (e: Exception) {
@@ -200,60 +183,57 @@ class ExpoTruecallerModule : Module() {
     private fun createOAuthCallback(): TcOAuthCallback {
         return object : TcOAuthCallback {
             override fun onSuccess(tcOAuthData: TcOAuthData) {
-                val promise = pendingVerifyPromise ?: return
+                val p = pendingPromise ?: return
                 val verifier = codeVerifier
                 if (verifier == null) {
-                    rejectPending(CodedException("PKCE_FAILED", "Code verifier is missing", null))
+                    pendingPromise = null
+                    TruecallerLauncherHolder.resultErrorCallback = null
+                    p.reject(PkceFailedException())
                     return
                 }
-                promise.resolve(
+                pendingPromise = null
+                TruecallerLauncherHolder.resultErrorCallback = null
+                p.resolve(
                     bundleOf(
                         "authorizationCode" to tcOAuthData.authorizationCode,
-                        "scopesGranted" to ArrayList(tcOAuthData.scopesGranted.toList()),
-                        "codeVerifier" to verifier
+                        "scopesGranted" to ArrayList(tcOAuthData.scopesGranted),
+                        "codeVerifier" to verifier,
+                        "state" to (tcOAuthData.state ?: "")
                     )
                 )
-                clearPendingState()
             }
 
             override fun onFailure(tcOAuthError: TcOAuthError) {
-                val promise = pendingVerifyPromise ?: return
-                promise.reject(
-                    CodedException(
-                        mapErrorCode(tcOAuthError.errorCode),
-                        tcOAuthError.errorMessage ?: "Truecaller verification failed",
-                        null
-                    )
-                )
-                clearPendingState()
+                val p = pendingPromise ?: return
+                pendingPromise = null
+                TruecallerLauncherHolder.resultErrorCallback = null
+                p.reject(mapErrorCode(tcOAuthError.errorCode))
             }
 
             override fun onVerificationRequired(tcOAuthError: TcOAuthError?) {
-                val promise = pendingVerifyPromise ?: return
-                promise.reject(
-                    CodedException(
-                        "VERIFICATION_REQUIRED",
-                        tcOAuthError?.errorMessage ?: "Additional verification required",
-                        null
-                    )
-                )
-                clearPendingState()
+                val p = pendingPromise ?: return
+                pendingPromise = null
+                TruecallerLauncherHolder.resultErrorCallback = null
+                p.reject(VerificationRequiredException())
             }
         }
     }
 
-    private fun mapErrorCode(errorCode: Int): String = when (errorCode) {
-        1 -> "NETWORK_FAILURE"
-        2 -> "USER_CANCELLED"
-        3 -> "VERIFICATION_REQUIRED"
-        4 -> "MISSING_CLIENT_ID"
-        5 -> "NOT_INSTALLED"
-        10 -> "SDK_ERROR"
-        11 -> "USER_NOT_SIGNED_IN"
-        13 -> "USER_DISMISSED"
-        14 -> "USER_PRESSED_BACK"
-        16 -> "SDK_TOO_OLD"
-        else -> "UNKNOWN_ERROR"
+    // Verified against truecaller-sdk:3.2.1 bytecode
+    private fun mapErrorCode(errorCode: Int): CodedException = when (errorCode) {
+        0 -> SdkErrorException()                // DefaultError
+        2 -> UserCancelledException()           // UserDeniedError
+        5 -> SdkErrorException()                // TruecallerClosedError (app closed unexpectedly)
+        6 -> SdkTooOldException()               // OldSdkError
+        7 -> SdkErrorException()                // RequestCodeCollisionError
+        10 -> SdkErrorException()               // InvalidAccountStateError
+        11 -> NotInstalledException()           // TruecallerNotInstalledError
+        12 -> MissingClientIdException()        // InvalidPartnerError
+        13 -> UserDismissedException()          // UserDeniedWhileLoadingError
+        14 -> UserPressedBackException()        // UserDeniedByPressingFooterError
+        15 -> SdkErrorException()               // TruecallerActivityNotFoundError
+        16 -> SdkTooOldException()              // DeviceNotSupported
+        else -> UnknownErrorException()
     }
 
     private fun buildSdkOptions(
@@ -264,12 +244,10 @@ class ExpoTruecallerModule : Module() {
         val builder = TcSdkOptions.Builder(activity, callback)
 
         options.consentMode?.let { mode ->
-            try {
-                when (mode) {
-                    "popup" -> builder.consentMode(TcSdkOptions.CONSENT_MODE_POPUP)
-                    "bottomsheet" -> builder.consentMode(TcSdkOptions.CONSENT_MODE_BOTTOMSHEET)
-                }
-            } catch (e: Exception) { Log.e(TAG, "Error setting consentMode", e) }
+            when (mode) {
+                "popup" -> builder.consentMode(TcSdkOptions.CONSENT_MODE_POPUP)
+                "bottomsheet" -> builder.consentMode(TcSdkOptions.CONSENT_MODE_BOTTOMSHEET)
+            }
         }
 
         options.buttonColor?.let { color ->
@@ -294,13 +272,45 @@ class ExpoTruecallerModule : Module() {
                 "continue" -> builder.ctaText(TcSdkOptions.CTA_TEXT_CONTINUE)
                 "proceed" -> builder.ctaText(TcSdkOptions.CTA_TEXT_PROCEED)
                 "accept" -> builder.ctaText(TcSdkOptions.CTA_TEXT_ACCEPT)
-                "confirm" -> builder.ctaText(TcSdkOptions.CTA_TEXT_COFIRM)
+                "confirm" -> builder.ctaText(TcSdkOptions.CTA_TEXT_CONFIRM)
+                "use" -> builder.ctaText(TcSdkOptions.CTA_TEXT_USE)
+                "continueWith" -> builder.ctaText(TcSdkOptions.CTA_TEXT_CONTINUE_WITH)
+                "proceedWith" -> builder.ctaText(TcSdkOptions.CTA_TEXT_PROCEED_WITH)
+            }
+        }
+
+        options.loginTextPrefix?.let { prefix ->
+            when (prefix) {
+                "toGetStarted" -> builder.loginTextPrefix(TcSdkOptions.LOGIN_TEXT_PREFIX_TO_GET_STARTED)
+                "toContinue" -> builder.loginTextPrefix(TcSdkOptions.LOGIN_TEXT_PREFIX_TO_CONTINUE)
+                "toPlaceOrder" -> builder.loginTextPrefix(TcSdkOptions.LOGIN_TEXT_PREFIX_TO_PLACE_ORDER)
+                "toCompleteYourPurchase" -> builder.loginTextPrefix(TcSdkOptions.LOGIN_TEXT_PREFIX_TO_COMPLETE_YOUR_PURCHASE)
+                "toCheckout" -> builder.loginTextPrefix(TcSdkOptions.LOGIN_TEXT_PREFIX_TO_CHECKOUT)
+                "toCompleteYourBooking" -> builder.loginTextPrefix(TcSdkOptions.LOGIN_TEXT_PREFIX_TO_COMPLETE_YOUR_BOOKING)
+                "toProceedWithYourBooking" -> builder.loginTextPrefix(TcSdkOptions.LOGIN_TEXT_PREFIX_TO_PROCEED_WITH_YOUR_BOOKING)
+                "toContinueWithYourBooking" -> builder.loginTextPrefix(TcSdkOptions.LOGIN_TEXT_PREFIX_TO_CONTINUE_WITH_YOUR_BOOKING)
+                "toGetDetails" -> builder.loginTextPrefix(TcSdkOptions.LOGIN_TEXT_PREFIX_TO_GET_DETAILS)
+                "toViewMore" -> builder.loginTextPrefix(TcSdkOptions.LOGIN_TEXT_PREFIX_TO_VIEW_MORE)
+                "toContinueReading" -> builder.loginTextPrefix(TcSdkOptions.LOGIN_TEXT_PREFIX_TO_CONTINUE_READING)
+                "toProceed" -> builder.loginTextPrefix(TcSdkOptions.LOGIN_TEXT_PREFIX_TO_PROCEED)
+                "forNewUpdates" -> builder.loginTextPrefix(TcSdkOptions.LOGIN_TEXT_PREFIX_FOR_NEW_UPDATES)
+                "toGetUpdates" -> builder.loginTextPrefix(TcSdkOptions.LOGIN_TEXT_PREFIX_TO_GET_UPDATES)
+                "toSubscribe" -> builder.loginTextPrefix(TcSdkOptions.LOGIN_TEXT_PREFIX_TO_SUBSCRIBE)
+                "toSubscribeAndGetUpdates" -> builder.loginTextPrefix(TcSdkOptions.LOGIN_TEXT_PREFIX_TO_SUBSCRIBE_AND_GET_UPDATES)
+            }
+        }
+
+        options.dismissOption?.let { dismiss ->
+            when (dismiss) {
+                "secondaryCtaBorder" -> builder.dismissOptions(TcSdkOptions.DISMISS_OPTION_SECONDARY_CTA_BORDER)
+                "crossButton" -> builder.dismissOptions(TcSdkOptions.DISMISS_OPTION_CROSS_BUTTON)
             }
         }
 
         options.footerType?.let { footer ->
             when (footer) {
-                "continue" -> builder.footerType(TcSdkOptions.FOOTER_TYPE_CONTINUE)
+                "skip" -> builder.footerType(TcSdkOptions.FOOTER_TYPE_SKIP)
+                "anotherNumber" -> builder.footerType(TcSdkOptions.FOOTER_TYPE_ANOTHER_MOBILE_NO)
                 "anotherMethod" -> builder.footerType(TcSdkOptions.FOOTER_TYPE_ANOTHER_METHOD)
                 "manually" -> builder.footerType(TcSdkOptions.FOOTER_TYPE_MANUALLY)
                 "later" -> builder.footerType(TcSdkOptions.FOOTER_TYPE_LATER)
@@ -310,7 +320,7 @@ class ExpoTruecallerModule : Module() {
         options.heading?.let { heading ->
             when (heading) {
                 "logInTo" -> builder.consentTitleOption(TcSdkOptions.SDK_CONSENT_HEADING_LOG_IN_TO)
-                "signUpWith" -> builder.consentTitleOption(TcSdkOptions.SDK_CONSENT_HEADING_SIGNUP_WITH)
+                "signUpWith" -> builder.consentTitleOption(TcSdkOptions.SDK_CONSENT_HEADING_SIGN_UP_WITH)
                 "signInTo" -> builder.consentTitleOption(TcSdkOptions.SDK_CONSENT_HEADING_SIGN_IN_TO)
                 "verifyNumberWith" -> builder.consentTitleOption(TcSdkOptions.SDK_CONSENT_HEADING_VERIFY_NUMBER_WITH)
                 "registerWith" -> builder.consentTitleOption(TcSdkOptions.SDK_CONSENT_HEADING_REGISTER_WITH)
@@ -340,6 +350,7 @@ class ExpoTruecallerModule : Module() {
         options.sdkOption?.let { opt ->
             when (opt) {
                 "verifyTcUsersOnly" -> builder.sdkOptions(TcSdkOptions.OPTION_VERIFY_ONLY_TC_USERS)
+                "verifyAllUsers" -> builder.sdkOptions(TcSdkOptions.OPTION_VERIFY_ALL_USERS)
             }
         }
 

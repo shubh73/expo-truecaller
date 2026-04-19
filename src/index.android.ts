@@ -5,26 +5,21 @@ import type {
   TruecallerVerifyOptions,
 } from "./ExpoTruecaller.types";
 import ExpoTruecallerModule from "./ExpoTruecallerModule";
-import { TruecallerError } from "./errors";
 
 /**
  * Initialize the Truecaller SDK.
  *
- * Must be called before `verifyUser()`. The returned `isUsable` flag
+ * Must be called before `verifyUserAsync()`. The returned `isUsable` flag
  * indicates whether Truecaller is installed and the OAuth flow is available.
  *
  * @param options SDK configuration options for the consent dialog appearance.
  * @return A promise that resolves with the initialization result.
  * @platform android
  */
-export async function initialize(
+export async function initializeAsync(
   options: TruecallerAndroidInitOptions = {},
 ): Promise<TruecallerInitResult> {
-  try {
-    return await ExpoTruecallerModule.initialize(options);
-  } catch (e) {
-    throw TruecallerError.from(e);
-  }
+  return ExpoTruecallerModule.initializeAsync(options);
 }
 
 /**
@@ -38,42 +33,20 @@ export async function initialize(
  * @return A promise that resolves with the authorization code, code verifier, and granted scopes.
  * @platform android
  */
-export async function verifyUser(
+export async function verifyUserAsync(
   options: TruecallerVerifyOptions = {},
 ): Promise<TruecallerAndroidResult> {
-  try {
-    return await ExpoTruecallerModule.verifyUser(options);
-  } catch (e) {
-    throw TruecallerError.from(e);
-  }
+  return ExpoTruecallerModule.verifyUserAsync(options);
 }
 
 /**
  * Clear the SDK instance and release resources.
- * Rejects any pending `verifyUser()` promise with the `CLEARED` error code.
+ * Rejects any pending `verifyUserAsync()` promise with `ERR_CLEARED`.
  * @platform android
  */
 export function clear(): void {
   ExpoTruecallerModule.clear();
 }
 
-export type {
-  ConsentHeading,
-  CtaTextPrefix,
-  ButtonShape,
-  FooterType,
-  ConsentMode,
-  OAuthTheme,
-  SdkOption,
-  SupportedLanguage,
-  OAuthScope,
-  TruecallerAndroidInitOptions,
-  TruecallerVerifyOptions,
-  TruecallerInitResult,
-  TruecallerAndroidResult,
-  TruecallerIOSResult,
-  TruecallerPluginConfig,
-} from "./ExpoTruecaller.types";
-
-export { TruecallerError, TruecallerErrorCodes } from "./errors";
-export type { TruecallerErrorCode } from "./errors";
+export * from "./ExpoTruecaller.types";
+export * from "./errors";

@@ -1,93 +1,50 @@
-import { CodedError } from "expo-modules-core";
-
 /**
  * All known error codes from the Truecaller SDK and this module.
  *
- * Android SDK error codes are mapped from their numeric values to semantic names
- * on the native side. iOS SDK error codes are prefixed with `IOS_`.
+ * Android SDK error codes are mapped from numeric values to `ERR_` prefixed
+ * semantic names on the native side via `CodedException` subclasses.
+ * iOS error codes use the same `ERR_` prefix via `promise.reject()`.
  */
 export const TruecallerErrorCodes = {
-  // Android SDK callback errors (mapped from TcOAuthError numeric codes)
-  NETWORK_FAILURE: "NETWORK_FAILURE",
-  USER_CANCELLED: "USER_CANCELLED",
-  VERIFICATION_REQUIRED: "VERIFICATION_REQUIRED",
-  MISSING_CLIENT_ID: "MISSING_CLIENT_ID",
-  NOT_INSTALLED: "NOT_INSTALLED",
-  SDK_ERROR: "SDK_ERROR",
-  USER_NOT_SIGNED_IN: "USER_NOT_SIGNED_IN",
-  USER_DISMISSED: "USER_DISMISSED",
-  USER_PRESSED_BACK: "USER_PRESSED_BACK",
-  SDK_TOO_OLD: "SDK_TOO_OLD",
-  UNKNOWN_ERROR: "UNKNOWN_ERROR",
+  // User-initiated cancellations
+  USER_CANCELLED: "ERR_USER_CANCELLED",
+  USER_DISMISSED: "ERR_USER_DISMISSED",
+  USER_PRESSED_BACK: "ERR_USER_PRESSED_BACK",
+
+  // Availability
+  NOT_INSTALLED: "ERR_NOT_INSTALLED",
+  NOT_AVAILABLE: "ERR_NOT_AVAILABLE",
+
+  // SDK errors
+  SDK_ERROR: "ERR_SDK_ERROR",
+  SDK_TOO_OLD: "ERR_SDK_TOO_OLD",
+  MISSING_CLIENT_ID: "ERR_MISSING_CLIENT_ID",
+  VERIFICATION_REQUIRED: "ERR_VERIFICATION_REQUIRED",
+  NETWORK_FAILURE: "ERR_NETWORK_FAILURE",
+  UNKNOWN_ERROR: "ERR_UNKNOWN_ERROR",
 
   // Module-level errors
-  NOT_INITIALIZED: "NOT_INITIALIZED",
-  NO_ACTIVITY: "NO_ACTIVITY",
-  NOT_AVAILABLE: "NOT_AVAILABLE",
-  LAUNCHER_NOT_REGISTERED: "LAUNCHER_NOT_REGISTERED",
-  PKCE_FAILED: "PKCE_FAILED",
-  CLEARED: "CLEARED",
-  ACTIVITY_DESTROYED: "ACTIVITY_DESTROYED",
-  INIT_FAILED: "INIT_FAILED",
-  RESULT_ERROR: "RESULT_ERROR",
-  VERIFICATION_FAILED: "VERIFICATION_FAILED",
+  NOT_INITIALIZED: "ERR_NOT_INITIALIZED",
+  NO_ACTIVITY: "ERR_NO_ACTIVITY",
+  ACTIVITY_DESTROYED: "ERR_ACTIVITY_DESTROYED",
+  LAUNCHER_NOT_REGISTERED: "ERR_LAUNCHER_NOT_REGISTERED",
+  PKCE_FAILED: "ERR_PKCE_FAILED",
+  CLEARED: "ERR_CLEARED",
+  INIT_FAILED: "ERR_INIT_FAILED",
+  RESULT_ERROR: "ERR_RESULT_ERROR",
+  VERIFICATION_FAILED: "ERR_VERIFICATION_FAILED",
+  ALREADY_IN_PROGRESS: "ERR_ALREADY_IN_PROGRESS",
+  MODULE_DESTROYED: "ERR_MODULE_DESTROYED",
 
   // iOS-specific
-  IOS_NOT_SUPPORTED: "IOS_NOT_SUPPORTED",
-  IOS_USER_CANCELLED: "IOS_USER_CANCELLED",
-  IOS_APP_KEY_MISSING: "IOS_APP_KEY_MISSING",
-  IOS_APP_LINK_MISSING: "IOS_APP_LINK_MISSING",
-  IOS_USER_NOT_SIGNED_IN: "IOS_USER_NOT_SIGNED_IN",
-  IOS_SDK_TOO_OLD: "IOS_SDK_TOO_OLD",
+  IOS_APP_KEY_MISSING: "ERR_IOS_APP_KEY_MISSING",
+  IOS_APP_LINK_MISSING: "ERR_IOS_APP_LINK_MISSING",
+  IOS_USER_NOT_SIGNED_IN: "ERR_IOS_USER_NOT_SIGNED_IN",
+  IOS_UNAUTHORIZED_DEVELOPER: "ERR_IOS_UNAUTHORIZED_DEVELOPER",
+  IOS_UNIVERSAL_LINK_FAILED: "ERR_IOS_UNIVERSAL_LINK_FAILED",
+  IOS_URL_SCHEME_MISSING: "ERR_IOS_URL_SCHEME_MISSING",
 } as const;
 
 /** Union of all possible Truecaller error codes. */
 export type TruecallerErrorCode =
   (typeof TruecallerErrorCodes)[keyof typeof TruecallerErrorCodes];
-
-/**
- * Typed error for all Truecaller SDK failures.
- * Extends `CodedError` from `expo-modules-core` for Expo ecosystem consistency.
- *
- * @example
- * ```ts
- * try {
- *   await verifyUser();
- * } catch (error) {
- *   if (error instanceof TruecallerError) {
- *     switch (error.code) {
- *       case TruecallerErrorCodes.USER_CANCELLED:
- *       case TruecallerErrorCodes.USER_PRESSED_BACK:
- *       case TruecallerErrorCodes.USER_DISMISSED:
- *         // User cancelled — not an error
- *         break;
- *       case TruecallerErrorCodes.NOT_INSTALLED:
- *         // Truecaller not available on this device
- *         break;
- *     }
- *   }
- * }
- * ```
- */
-export class TruecallerError extends CodedError {
-  override readonly code: string;
-
-  constructor(code: string, message: string) {
-    super(code, message);
-    this.name = "TruecallerError";
-    this.code = code;
-  }
-
-  /** Wrap a native module rejection into a `TruecallerError`. */
-  static from(error: unknown): TruecallerError {
-    if (error instanceof TruecallerError) return error;
-    if (error instanceof Error) {
-      const nativeCode = (error as { code?: string }).code;
-      return new TruecallerError(
-        nativeCode ?? "UNKNOWN_ERROR",
-        error.message ?? "An unknown error occurred",
-      );
-    }
-    return new TruecallerError("UNKNOWN_ERROR", String(error));
-  }
-}

@@ -1,7 +1,6 @@
-import { NativeModule, requireNativeModule } from "expo";
+import { requireNativeModule } from "expo";
 
 import type {
-  ExpoTruecallerModuleEvents,
   TruecallerAndroidInitOptions,
   TruecallerAndroidResult,
   TruecallerIOSResult,
@@ -9,18 +8,13 @@ import type {
   TruecallerVerifyOptions,
 } from "./ExpoTruecaller.types";
 
-/** @internal Native module bridge declaration. */
-declare class ExpoTruecallerModuleClass extends NativeModule<ExpoTruecallerModuleEvents> {
-  initialize(
-    options: TruecallerAndroidInitOptions,
+export default requireNativeModule<{
+  initializeAsync(
+    options?: TruecallerAndroidInitOptions,
   ): Promise<TruecallerInitResult>;
-  initialize(): Promise<TruecallerInitResult>;
-  verifyUser(
+  verifyUserAsync(
     options: TruecallerVerifyOptions,
   ): Promise<TruecallerAndroidResult>;
-  requestProfile(): Promise<TruecallerIOSResult>;
-  isSupported(): boolean;
+  requestProfileAsync(): Promise<TruecallerIOSResult>;
   clear(): void;
-}
-
-export default requireNativeModule<ExpoTruecallerModuleClass>("ExpoTruecaller");
+}>("ExpoTruecaller");

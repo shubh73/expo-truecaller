@@ -1,6 +1,12 @@
 # expo-truecaller
 
-Expo module wrapping the [Truecaller SDK](https://docs.truecaller.com/) for both Android (OAuth 3.2.1) and iOS (TrueSDK). Android returns an OAuth authorization code for backend token exchange; iOS returns the user's Truecaller profile directly.
+[![npm](https://img.shields.io/npm/v/expo-truecaller?color=black)](https://www.npmjs.com/package/expo-truecaller)
+[![CI](https://img.shields.io/github/actions/workflow/status/shubh73/expo-truecaller/ci.yml?label=ci&color=black)](https://github.com/shubh73/expo-truecaller/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/shubh73/expo-truecaller?color=black)](LICENSE)
+
+One-tap phone verification powered by the [Truecaller SDK](https://docs.truecaller.com/). Android returns an OAuth authorization code for backend token exchange; iOS returns the user's Truecaller profile directly.
+
+![demo](docs/demo-android.gif)
 
 ## Installation
 
@@ -25,114 +31,18 @@ Add the config plugin to your `app.json` / `app.config.ts`:
 }
 ```
 
-`androidClientId` is required. iOS fields are optional — omit them to skip iOS setup.
+All fields are optional. Omit a platform's fields to skip its native setup.
 
-The plugin automatically configures:
-
-- **Android:** `com.truecaller.android.sdk.ClientId` in `AndroidManifest.xml`
-- **iOS:** URL scheme, `LSApplicationQueriesSchemes`, `Info.plist` credentials, associated domains entitlement, and `continueUserActivity` forwarding
-
-## API
-
-### Android
-
-#### `initialize(options?)`
-
-```typescript
-function initialize(options?: TruecallerAndroidInitOptions): Promise<TruecallerInitResult>
-```
-
-Initialize the Truecaller SDK. Must be called before `verifyUser()`.
-
-Returns `{ initialized: boolean, isUsable: boolean }`. The `isUsable` flag indicates whether the Truecaller app is installed and the user is logged in.
-
-Options (all optional): `consentMode`, `heading`, `ctaTextPrefix`, `buttonShape`, `footerType`, `theme`, `language`, `buttonColor`, `buttonTextColor`, `sdkOption`.
-
-#### `verifyUser(options?)`
-
-```typescript
-function verifyUser(options?: TruecallerVerifyOptions): Promise<TruecallerAndroidResult>
-```
-
-Trigger the Truecaller OAuth verification flow.
-
-Returns `{ authorizationCode, codeVerifier, scopesGranted }`. Exchange `authorizationCode` and `codeVerifier` on your backend via `POST https://oauth-account-noneu.truecaller.com/v1/token`.
-
-Options: `scopes` (defaults to `["profile", "phone"]`).
-
-#### `clear()`
-
-```typescript
-function clear(): void
-```
-
-Clear the SDK instance and release resources. Rejects any pending `verifyUser()` promise with `CLEARED`.
-
-### iOS
-
-#### `initialize()`
-
-```typescript
-function initialize(): Promise<TruecallerInitResult>
-```
-
-Initialize the Truecaller SDK. Reads credentials from `Info.plist` (set by the config plugin).
-
-Returns `{ initialized: boolean, isUsable: boolean }`.
-
-#### `requestProfile()`
-
-```typescript
-function requestProfile(): Promise<TruecallerIOSResult>
-```
-
-Request the user's Truecaller profile. Unlike Android, the iOS SDK returns profile data directly without a backend token exchange.
-
-Returns `{ firstName, lastName, phoneNumber, countryCode, email, gender, avatarUrl, city, isVerified }`.
-
-#### `isSupported()`
-
-```typescript
-function isSupported(): boolean
-```
-
-Check if Truecaller is installed and supported on this device.
-
-#### `clear()`
-
-```typescript
-function clear(): void
-```
-
-Clear the SDK instance. Rejects any pending `requestProfile()` promise with `CLEARED`.
-
-### Error codes
-
-All errors are thrown as `TruecallerError` (extends `CodedError` from `expo-modules-core`) with a semantic `.code`:
-
-| Code | Platform | Meaning |
-|------|----------|---------|
-| `USER_CANCELLED` | Android | User cancelled the consent dialog |
-| `USER_PRESSED_BACK` | Android | User pressed the back button |
-| `USER_DISMISSED` | Android | User dismissed the dialog |
-| `NOT_INSTALLED` | Both | Truecaller app is not installed |
-| `NOT_AVAILABLE` | Android | OAuth flow is not usable |
-| `NOT_INITIALIZED` | Both | `initialize()` was not called |
-| `NETWORK_FAILURE` | Both | Network error |
-| `SDK_ERROR` | Both | Internal SDK error |
-| `SDK_TOO_OLD` | Both | Truecaller app version is too old |
-| `CLEARED` | Both | `clear()` was called while a request was pending |
-| `IOS_USER_CANCELLED` | iOS | User cancelled the profile request |
-| `IOS_NOT_SUPPORTED` | iOS | Truecaller is not supported on this device |
+> This module requires a [development build](https://docs.expo.dev/develop/development-builds/introduction/). It will not work in Expo Go.
 
 ## Usage
 
 ### Android
 
 ```typescript
-import { initialize, verifyUser, clear, TruecallerError, TruecallerErrorCodes } from "expo-truecaller";
+import { initializeAsync, verifyUserAsync, TruecallerErrorCodes } from "expo-truecaller";
 
-const { isUsable } = await initialize({
+const { isUsable } = await initializeAsync({
   consentMode: "bottomsheet",
   heading: "logInTo",
   theme: "dark",
@@ -140,10 +50,11 @@ const { isUsable } = await initialize({
 
 if (isUsable) {
   try {
-    const { authorizationCode, codeVerifier } = await verifyUser();
-    // Send authorizationCode + codeVerifier to your backend
+    const { authorizationCode, codeVerifier } = await verifyUserAsync();
+    // Exchange authorizationCode + codeVerifier on your backend
+    // https://docs.truecaller.com/truecaller-sdk/android/oauth-sdk-3.0.0/server-side-response-validation
   } catch (e) {
-    if (e instanceof TruecallerError && e.code === TruecallerErrorCodes.USER_CANCELLED) {
+    if (e.code === TruecallerErrorCodes.USER_CANCELLED) {
       // User cancelled — fall back to OTP
     }
   }
@@ -153,16 +64,49 @@ if (isUsable) {
 ### iOS
 
 ```typescript
-import { initialize, requestProfile, isSupported } from "expo-truecaller";
+import { initializeAsync, requestProfileAsync } from "expo-truecaller";
 
-await initialize();
+const { isUsable } = await initializeAsync();
 
-if (isSupported()) {
-  const profile = await requestProfile();
+if (isUsable) {
+  const profile = await requestProfileAsync();
   console.log(profile.firstName, profile.phoneNumber);
 }
 ```
 
-## Contributing
+## API
 
-Contributions are welcome. Please open an issue first to discuss what you'd like to change.
+### `initializeAsync(options?)`
+
+Initialize the Truecaller SDK. Returns `{ initialized, isUsable }`. On Android, accepts optional [customization options](https://docs.truecaller.com/truecaller-sdk/android/oauth-sdk-3.2.1/integration-steps/customisation). On iOS, reads credentials from `Info.plist` (set by the config plugin). Some options (`loginTextPrefix`, `dismissOption`, extra `ctaTextPrefix` values) are available in the SDK binary but not yet in the official Truecaller docs.
+
+### `verifyUserAsync(options?)` — Android
+
+Trigger the Truecaller OAuth flow. Returns `{ authorizationCode, codeVerifier, scopesGranted, state }`. Options: `scopes` (defaults to `["profile", "phone"]`).
+
+### `requestProfileAsync()` — iOS
+
+Request the user's Truecaller profile. Returns `{ firstName, lastName, phoneNumber, countryCode, email, gender, avatarUrl, city, isVerified }`.
+
+### `clear()`
+
+Clear the SDK instance. Rejects any pending promise with `ERR_CLEARED`.
+
+### Error codes
+
+| Code | Meaning |
+|------|---------|
+| `ERR_USER_CANCELLED` | User dismissed the consent screen |
+| `ERR_USER_PRESSED_BACK` | User pressed the footer button (Android) |
+| `ERR_USER_DISMISSED` | User dismissed while loading (Android) |
+| `ERR_NOT_INSTALLED` | Truecaller is not installed |
+| `ERR_NOT_AVAILABLE` | OAuth flow is not usable |
+| `ERR_NOT_INITIALIZED` | `initializeAsync()` was not called |
+| `ERR_ALREADY_IN_PROGRESS` | A request is already pending |
+| `ERR_CLEARED` | `clear()` was called while pending |
+| `ERR_SDK_ERROR` | Internal SDK error |
+| `ERR_SDK_TOO_OLD` | SDK or device not compatible |
+| `ERR_MISSING_CLIENT_ID` | Invalid partner credentials (Android) |
+| `ERR_VERIFICATION_REQUIRED` | Additional verification required (Android) |
+| `ERR_IOS_UNIVERSAL_LINK_FAILED` | Universal Link resolution failed (iOS) |
+| `ERR_IOS_URL_SCHEME_MISSING` | URL scheme not configured (iOS) |

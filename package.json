@@ -1,7 +1,7 @@
 {
   "name": "expo-truecaller",
   "version": "0.1.0",
-  "description": "Expo module for Truecaller SDK",
+  "description": "Expo module wrapping the Truecaller SDK for one-tap phone verification on Android and iOS.",
   "main": "build/index.js",
   "types": "build/index.d.ts",
   "sideEffects": false,
@@ -12,9 +12,7 @@
     "lint": "expo-module lint",
     "test": "expo-module test",
     "prepublishOnly": "expo-module prepublishOnly",
-    "expo-module": "expo-module",
-    "open:ios": "xed example/ios",
-    "open:android": "open -a \"Android Studio\" example/android"
+    "expo-module": "expo-module"
   },
   "jest": {
     "preset": "expo-module-scripts"
@@ -46,15 +44,15 @@
   "bugs": {
     "url": "https://github.com/shubh73/expo-truecaller/issues"
   },
-  "author": "Shubh Porwal <shubh.porwal24@gmail.com> (https://github.com/shubh73)",
+  "author": "Shubh Porwal (https://github.com/shubh73)",
   "license": "MIT",
   "homepage": "https://github.com/shubh73/expo-truecaller#readme",
   "dependencies": {},
   "devDependencies": {
-    "@types/react": "~19.1.0",
-    "expo-module-scripts": "^5.0.8",
+    "@types/react": "~19.2.0",
+    "expo-module-scripts": "^55.0.2",
     "expo": "^54.0.27",
-    "react-native": "0.81.5"
+    "react-native": "0.83.4"
   },
   "peerDependencies": {
     "expo": "*",

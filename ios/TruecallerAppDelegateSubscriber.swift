@@ -9,4 +9,14 @@ public class TruecallerAppDelegateSubscriber: ExpoAppDelegateSubscriber {
   ) -> Bool {
     return TCTrueSDK.sharedManager().application(application, continue: userActivity, restorationHandler: restorationHandler)
   }
+
+  // URL scheme fallback when Universal Link resolution fails (SDK 0.1.7+).
+  // Without this, error 19 (UniversalLinkFailed) silently drops and pendingPromise never settles.
+  public func application(
+    _ app: UIApplication,
+    open url: URL,
+    options: [UIApplication.OpenURLOptionsKey: Any] = [:]
+  ) -> Bool {
+    return TCTrueSDK.sharedManager().continue(withUrlScheme: url)
+  }
 }
