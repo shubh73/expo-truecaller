@@ -150,8 +150,6 @@ class ExpoTruecallerModule : Module() {
         }
     }
 
-    // --- Helpers ---
-
     private fun requireActivity(): FragmentActivity {
         val activity = appContext.currentActivity as? FragmentActivity
             ?: throw NoActivityException()

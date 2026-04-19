@@ -28,8 +28,6 @@ function validateProps(props: TruecallerPluginConfig): void {
   }
 }
 
-// --- Android ---
-
 const withTruecallerAndroid: ConfigPlugin<{ androidClientId: string }> = (
   config,
   { androidClientId }
@@ -54,8 +52,6 @@ const withTruecallerAndroid: ConfigPlugin<{ androidClientId: string }> = (
     return config;
   });
 };
-
-// --- iOS: Info.plist ---
 
 const withTruecallerIOSPlist: ConfigPlugin<{
   iosAppKey: string;
@@ -85,8 +81,6 @@ const withTruecallerIOSPlist: ConfigPlugin<{
   });
 };
 
-// --- iOS: Associated Domains ---
-
 const withTruecallerIOSAssociatedDomains: ConfigPlugin<{
   iosAppLink: string;
 }> = (config, { iosAppLink }) => {
@@ -111,8 +105,7 @@ const withTruecallerIOSAssociatedDomains: ConfigPlugin<{
   });
 };
 
-// --- Main ---
-// Note: AppDelegate continueUserActivity forwarding is handled by
+// AppDelegate continueUserActivity forwarding is handled by
 // TruecallerAppDelegateSubscriber (registered in expo-module.config.json),
 // so no AppDelegate code injection is needed here.
 

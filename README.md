@@ -52,7 +52,7 @@ if (isUsable) {
   try {
     const { authorizationCode, codeVerifier } = await verifyUserAsync();
     // Exchange authorizationCode + codeVerifier on your backend
-    // https://docs.truecaller.com/truecaller-sdk/android/oauth-sdk-3.0.0/server-side-response-validation
+    // https://docs.truecaller.com/truecaller-sdk/android/latest-oauth-sdk-3.2.1/integration-steps/integrating-with-your-backend
   } catch (e) {
     if (e.code === TruecallerErrorCodes.USER_CANCELLED) {
       // User cancelled — fall back to OTP
