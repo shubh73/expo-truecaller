@@ -7,7 +7,18 @@ public class TruecallerAppDelegateSubscriber: ExpoAppDelegateSubscriber {
     continue userActivity: NSUserActivity,
     restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void
   ) -> Bool {
-    return TCTrueSDK.sharedManager().application(application, continue: userActivity, restorationHandler: restorationHandler)
+    let truecallerRestorationHandler: ([Any]?) -> Void = { restorableObjects in
+      let mappedObjects = restorableObjects?.compactMap {
+        $0 as? UIUserActivityRestoring
+      }
+      restorationHandler(mappedObjects)
+    }
+
+    return TCTrueSDK.sharedManager().application(
+      application,
+      continue: userActivity,
+      restorationHandler: truecallerRestorationHandler
+    )
   }
 
   // URL scheme fallback when Universal Link resolution fails (SDK 0.1.7+).

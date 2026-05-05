@@ -1,9 +1,22 @@
 import ExpoModulesCore
 import TrueSDK
 
-public class ExpoTruecallerModule: Module, TCTrueSDKDelegate {
+private final class TruecallerDelegateProxy: NSObject, TCTrueSDKDelegate {
+  weak var module: ExpoTruecallerModule?
+
+  func didReceive(_ profile: TCTrueProfile) {
+    module?.handleDidReceive(profile)
+  }
+
+  func didFailToReceiveTrueProfileWithError(_ error: TCError) {
+    module?.handleDidFailToReceiveTrueProfile(error)
+  }
+}
+
+public class ExpoTruecallerModule: Module {
   private var pendingPromise: Promise?
   private var isInitialized = false
+  private let truecallerDelegate = TruecallerDelegateProxy()
 
   public func definition() -> ModuleDefinition {
     Name("ExpoTruecaller")
@@ -24,7 +37,8 @@ public class ExpoTruecallerModule: Module, TCTrueSDKDelegate {
 
       let manager = TCTrueSDK.sharedManager()
       manager.setup(withAppKey: appKey, appLink: appLink)
-      manager.delegate = self
+      self.truecallerDelegate.module = self
+      manager.delegate = self.truecallerDelegate
       self.isInitialized = true
 
       promise.resolve([
@@ -60,6 +74,7 @@ public class ExpoTruecallerModule: Module, TCTrueSDKDelegate {
       self.pendingPromise = nil
       p?.reject("ERR_CLEARED", "SDK was cleared")
       TCTrueSDK.sharedManager().delegate = nil
+      self.truecallerDelegate.module = nil
       self.isInitialized = false
     }
 
@@ -68,13 +83,12 @@ public class ExpoTruecallerModule: Module, TCTrueSDKDelegate {
       self.pendingPromise = nil
       p?.reject("ERR_MODULE_DESTROYED", "Module was destroyed")
       TCTrueSDK.sharedManager().delegate = nil
+      self.truecallerDelegate.module = nil
       self.isInitialized = false
     }
   }
 
-  // MARK: - TCTrueSDKDelegate
-
-  public func didReceive(_ profile: TCTrueProfile) {
+  fileprivate func handleDidReceive(_ profile: TCTrueProfile) {
     let p = pendingPromise
     pendingPromise = nil
     guard let promise = p else { return }
@@ -99,7 +113,7 @@ public class ExpoTruecallerModule: Module, TCTrueSDKDelegate {
     ])
   }
 
-  public func didFailToReceiveTrueProfileWithError(_ error: TCError) {
+  fileprivate func handleDidFailToReceiveTrueProfile(_ error: TCError) {
     let p = pendingPromise
     pendingPromise = nil
     p?.reject(mapIOSErrorCode(error.code), error.localizedDescription)
