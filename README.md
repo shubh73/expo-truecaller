@@ -2,7 +2,7 @@
 
 [![npm](https://img.shields.io/npm/v/expo-truecaller?color=black)](https://www.npmjs.com/package/expo-truecaller)
 [![CI](https://img.shields.io/github/actions/workflow/status/shubh73/expo-truecaller/ci.yml?label=ci&color=black)](https://github.com/shubh73/expo-truecaller/actions/workflows/ci.yml)
-[![License](https://img.shields.io/github/license/shubh73/expo-truecaller?color=black)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-black.svg)](https://github.com/shubh73/expo-truecaller/blob/main/LICENSE)
 
 One-tap phone verification powered by the [Truecaller SDK](https://docs.truecaller.com/). Android returns an OAuth authorization code for backend token exchange; iOS returns the user's Truecaller profile directly.
 

@@ -5,6 +5,7 @@ import {
   withAndroidManifest,
   withEntitlementsPlist,
   withInfoPlist,
+  withPodfile,
 } from "expo/config-plugins";
 
 const pkg = require("../../package.json");
@@ -105,6 +106,86 @@ const withTruecallerIOSAssociatedDomains: ConfigPlugin<{
   });
 };
 
+const TRUECALLER_ASSETS_CAR_FIX_START =
+  "# [expo-truecaller] Fix TrueSDK Assets.car collision (start)";
+const TRUECALLER_ASSETS_CAR_FIX_END =
+  "# [expo-truecaller] Fix TrueSDK Assets.car collision (end)";
+
+const TRUECALLER_ASSETS_CAR_FIX = `${TRUECALLER_ASSETS_CAR_FIX_START}
+assets_car = '\${TARGET_BUILD_DIR}/\${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Assets.car'
+
+installer.aggregate_targets.each do |aggregate_target|
+  user_project = aggregate_target.user_project
+  next unless user_project
+
+  changed = false
+  user_project.native_targets.each do |native_target|
+    native_target.build_phases.each do |build_phase|
+      next unless build_phase.respond_to?(:name) && build_phase.name == '[CP] Copy Pods Resources'
+      next unless build_phase.respond_to?(:output_paths)
+
+      original_output_paths = build_phase.output_paths.dup
+      build_phase.output_paths = build_phase.output_paths.reject { |output_path| output_path == assets_car }
+      changed ||= original_output_paths != build_phase.output_paths
+    end
+  end
+
+  user_project.save if changed
+end
+
+Dir.glob(File.join(installer.sandbox.root, 'Target Support Files', 'Pods-*', '*resources-output-files.xcfilelist')).each do |filelist_path|
+  lines = File.readlines(filelist_path)
+  next_lines = lines.reject { |line| line.strip == assets_car }
+  File.write(filelist_path, next_lines.join) if next_lines != lines
+end
+${TRUECALLER_ASSETS_CAR_FIX_END}`;
+
+function removeTaggedBlock(
+  contents: string,
+  start: string,
+  end: string
+): string {
+  const escapedStart = start.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const escapedEnd = end.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const existingBlock = new RegExp(
+    `\\n?\\s*${escapedStart}[\\s\\S]*?\\s*${escapedEnd}\\n?`,
+    "m"
+  );
+
+  return contents.replace(existingBlock, "\n");
+}
+
+function addTruecallerAssetsCarFix(podfile: string): string {
+  const nextPodfile = removeTaggedBlock(
+    podfile,
+    TRUECALLER_ASSETS_CAR_FIX_START,
+    TRUECALLER_ASSETS_CAR_FIX_END
+  );
+  const postIntegrateHook = /^(\s*)post_integrate\s+do\s+\|\s*installer\s*\|\s*$/m;
+
+  if (postIntegrateHook.test(nextPodfile)) {
+    return nextPodfile.replace(
+      postIntegrateHook,
+      (match, indent) =>
+        `${match}\n${TRUECALLER_ASSETS_CAR_FIX.replace(/^/gm, `${indent}  `)}`
+    );
+  }
+
+  return `${nextPodfile.trimEnd()}\n\npost_integrate do |installer|\n${TRUECALLER_ASSETS_CAR_FIX.replace(
+    /^/gm,
+    "  "
+  )}\nend\n`;
+}
+
+const withTruecallerIOSAssetsCarOutputFix: ConfigPlugin = (config) => {
+  return withPodfile(config, (config) => {
+    config.modResults.contents = addTruecallerAssetsCarFix(
+      config.modResults.contents
+    );
+    return config;
+  });
+};
+
 // AppDelegate continueUserActivity forwarding is handled by
 // TruecallerAppDelegateSubscriber (registered in expo-module.config.json),
 // so no AppDelegate code injection is needed here.
@@ -114,6 +195,8 @@ const withTruecaller: ConfigPlugin<TruecallerPluginConfig> = (
   props
 ) => {
   validateProps(props);
+
+  config = withTruecallerIOSAssetsCarOutputFix(config);
 
   if (props.androidClientId) {
     config = withTruecallerAndroid(config, {
