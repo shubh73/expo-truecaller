@@ -98,7 +98,7 @@ Returns `{ firstName, lastName, phoneNumber, countryCode, email, gender, avatarU
 
 Clear the SDK instance. Rejects any pending promise with `ERR_CLEARED`.
 
-### Handling errors
+## Handling errors
 
 Import `TruecallerErrorCodes` for the full list.
 
