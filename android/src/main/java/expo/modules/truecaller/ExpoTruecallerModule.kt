@@ -79,7 +79,7 @@ class ExpoTruecallerModule : Module() {
 
                 promise.resolve(bundleOf("initialized" to true, "isUsable" to isUsable))
             } catch (e: Exception) {
-                throw InitFailedException(e)
+                throw InitFailedException(cause = e)
             }
         }
 
@@ -98,7 +98,7 @@ class ExpoTruecallerModule : Module() {
                 val p = pendingPromise ?: return@callback
                 pendingPromise = null
                 TruecallerLauncherHolder.resultErrorCallback = null
-                p.reject(ResultErrorException(e))
+                p.reject(ResultErrorException(cause = e))
             }
 
             activity.runOnUiThread {
@@ -136,7 +136,7 @@ class ExpoTruecallerModule : Module() {
                     tcSdk.getAuthorizationCode(activity, launcher)
                 } catch (e: Exception) {
                     Log.e(TAG, "Error starting verification flow", e)
-                    settleWithError(VerificationFailedException(e))
+                    settleWithError(VerificationFailedException(cause = e))
                 }
             }
         }

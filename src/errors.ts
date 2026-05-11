@@ -1,8 +1,8 @@
 /**
  * All known error codes from the Truecaller SDK and this module.
  *
- * Android SDK error codes are mapped from numeric values to `ERR_` prefixed
- * semantic names on the native side via `CodedException` subclasses.
+ * Android SDK error codes are mapped from numeric values to explicit `ERR_`
+ * prefixed semantic names on the native side.
  * iOS error codes use the same `ERR_` prefix via `promise.reject()`.
  */
 export const TruecallerErrorCodes = {

@@ -98,21 +98,32 @@ Returns `{ firstName, lastName, phoneNumber, countryCode, email, gender, avatarU
 
 Clear the SDK instance. Rejects any pending promise with `ERR_CLEARED`.
 
-### Error codes
+### Handling errors
+
+Import `TruecallerErrorCodes` for the full list.
 
 | Code | Meaning |
 |------|---------|
 | `ERR_USER_CANCELLED` | User dismissed the consent screen |
-| `ERR_USER_PRESSED_BACK` | User pressed the footer button (Android) |
 | `ERR_USER_DISMISSED` | User dismissed while loading (Android) |
+| `ERR_USER_PRESSED_BACK` | User pressed the footer button (Android) |
 | `ERR_NOT_INSTALLED` | Truecaller is not installed |
 | `ERR_NOT_AVAILABLE` | OAuth flow is not usable |
-| `ERR_NOT_INITIALIZED` | `initializeAsync()` was not called |
-| `ERR_ALREADY_IN_PROGRESS` | A request is already pending |
-| `ERR_CLEARED` | `clear()` was called while pending |
 | `ERR_SDK_ERROR` | Internal SDK error |
 | `ERR_SDK_TOO_OLD` | SDK or device not compatible |
 | `ERR_MISSING_CLIENT_ID` | Invalid partner credentials (Android) |
 | `ERR_VERIFICATION_REQUIRED` | Additional verification required (Android) |
+| `ERR_NETWORK_FAILURE` | Network error occurred (iOS) |
+| `ERR_UNKNOWN_ERROR` | Unknown Truecaller error |
+| `ERR_NOT_INITIALIZED` | `initializeAsync()` was not called |
+| `ERR_PKCE_FAILED` | Failed to generate PKCE verifier or challenge |
+| `ERR_CLEARED` | `clear()` was called while pending |
+| `ERR_INIT_FAILED` | Failed to initialize the Truecaller SDK |
+| `ERR_VERIFICATION_FAILED` | Failed to start or complete verification |
+| `ERR_ALREADY_IN_PROGRESS` | A request is already pending |
+| `ERR_IOS_APP_KEY_MISSING` | `TruecallerAppKey` is missing from `Info.plist` (iOS) |
+| `ERR_IOS_APP_LINK_MISSING` | `TruecallerAppLink` is missing from `Info.plist` (iOS) |
+| `ERR_IOS_USER_NOT_SIGNED_IN` | User is not signed in to Truecaller (iOS) |
+| `ERR_IOS_UNAUTHORIZED_DEVELOPER` | Developer account is unauthorized (iOS) |
 | `ERR_IOS_UNIVERSAL_LINK_FAILED` | Universal Link resolution failed (iOS) |
 | `ERR_IOS_URL_SCHEME_MISSING` | URL scheme not configured (iOS) |
